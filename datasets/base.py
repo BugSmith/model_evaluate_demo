@@ -4,6 +4,7 @@
 from abc import ABC, abstractmethod
 import os
 import json
+import re
 
 
 class BaseDataset(ABC):
@@ -40,11 +41,25 @@ class BaseDataset(ABC):
             # 默认使用直接返回问题
             return item.get('question', '')
         
-        # 使用模板进行格式化
-        try:
-            return template.format(**item)
-        except KeyError as e:
-            raise KeyError(f"模板中包含数据集中不存在的键: {e}")
+        # 首先检查是否使用了双花括号格式 {{variable}}
+        double_brace_matches = re.findall(r"\{\{(\w+)\}\}", template)
+        
+        if double_brace_matches:
+            # 使用双花括号格式的情况
+            prompt = template
+            for key in double_brace_matches:
+                if key in item:
+                    # 替换 {{key}} 为实际值
+                    prompt = prompt.replace(f"{{{{{key}}}}}", str(item[key]))
+                else:
+                    raise KeyError(f"模板中包含数据集中不存在的键: {key}")
+            return prompt
+        else:
+            # 使用传统的format格式化方法
+            try:
+                return template.format(**item)
+            except KeyError as e:
+                raise KeyError(f"模板中包含数据集中不存在的键: {e}")
             
     def __len__(self):
         return len(self.data) if self.data is not None else 0

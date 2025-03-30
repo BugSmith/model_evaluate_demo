@@ -21,9 +21,9 @@ class MathDataset(BaseDataset):
         self.difficulty = kwargs.get('difficulty', None)  # 1-5的难度级别
         self.max_samples = kwargs.get('max_samples', None)
         
-        # 定义默认提示模板
+        # 定义默认提示模板，使用双花括号语法确保与get_prompt方法兼容
         self.default_template = kwargs.get('template', 
-            "问题: {problem}\n\n请一步步解答这个数学问题，最后给出答案。"
+            "问题: {{problem}}\n\n请一步步解答这个数学问题，最后给出答案。"
         )
         
         # 定义相对路径和默认数据目录
@@ -62,7 +62,14 @@ class MathDataset(BaseDataset):
             print(f"从缓存加载了 {len(cached_data)} 个MATH样本")
             return self
             
-        # 首先检查特定的本地数据文件
+        # 首先检查是否有samples.jsonl文件
+        if self.data_path:
+            samples_file = os.path.join(self.data_path, "samples.jsonl")
+            if os.path.exists(samples_file):
+                print(f"从本地文件加载MATH样本数据: {samples_file}")
+                return self._load_local_jsonl(samples_file)
+        
+        # 其次检查是否有demo.jsonl文件
         local_demo_file = None
         if self.data_path:
             local_demo_file = os.path.join(self.data_path, "demo.jsonl")
@@ -74,11 +81,11 @@ class MathDataset(BaseDataset):
         
         # 如果指定了本地数据路径且该路径存在
         if self.data_path and os.path.exists(self.data_path):
-            # 尝试找samples.jsonl
-            samples_file = os.path.join(self.data_path, "samples.jsonl")
-            if os.path.exists(samples_file):
-                print(f"从本地文件加载MATH样本数据: {samples_file}")
-                return self._load_local_jsonl(samples_file)
+            # 检查dataset.jsonl
+            dataset_file = os.path.join(self.data_path, "dataset.jsonl")
+            if os.path.exists(dataset_file):
+                print(f"从本地文件加载MATH数据集: {dataset_file}")
+                return self._load_local_jsonl(dataset_file)
                 
             print(f"从本地目录加载MATH数据: {self.data_path}")
             return self._load_from_local()
@@ -91,8 +98,23 @@ class MathDataset(BaseDataset):
         """从本地JSONL文件加载数据"""
         try:
             data = []
+            line_count = 0
+            
+            # 首先计算总行数
             with open(file_path, 'r', encoding='utf-8') as f:
-                for line in f:
+                for _ in f:
+                    line_count += 1
+            
+            # 如果max_samples已设置且小于总行数，只处理max_samples的数据
+            process_count = min(line_count, self.max_samples) if self.max_samples else line_count
+            print(f"JSONL文件共有{line_count}行，将处理前{process_count}行")
+            
+            # 加载数据
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for i, line in enumerate(f):
+                    if self.max_samples and i >= self.max_samples:
+                        break
+                        
                     if line.strip():
                         try:
                             item = json.loads(line.strip())
@@ -110,12 +132,6 @@ class MathDataset(BaseDataset):
                         except json.JSONDecodeError:
                             print(f"跳过无效的JSON行: {line[:50]}...")
             
-            # 处理最大样本数限制
-            if self.max_samples and len(data) > self.max_samples:
-                import random
-                random.shuffle(data)
-                data = data[:self.max_samples]
-                
             self.data = data
             
             # 保存到缓存

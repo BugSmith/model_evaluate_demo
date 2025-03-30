@@ -35,7 +35,7 @@ def get_available_datasets() -> List[str]:
     Returns:
         List[str]: 可用数据集名称列表
     """
-    return sorted(list(DATASETS.keys()))
+    return sorted(DATASETS.list())
 
 def get_available_metrics() -> List[str]:
     """
@@ -44,7 +44,7 @@ def get_available_metrics() -> List[str]:
     Returns:
         List[str]: 可用评估指标名称列表
     """
-    return sorted(list(METRICS.keys()))
+    return sorted(METRICS.list())
 
 def get_available_model_types() -> List[str]:
     """
@@ -53,7 +53,7 @@ def get_available_model_types() -> List[str]:
     Returns:
         List[str]: 可用模型类型名称列表
     """
-    return sorted(list(MODELS.keys()))
+    return sorted(MODELS.list())
 
 def get_default_generation_params() -> Dict[str, Any]:
     """
@@ -260,11 +260,10 @@ def list_available_model_types():
     return MODELS.list()
 
 def get_default_generation_kwargs():
-    """返回默认的生成参数"""
-    return {
-        "temperature": 0.0,
-        "max_new_tokens": 256,
-        "do_sample": False,
-        "repetition_penalty": 1.0,
-        "top_p": 0.9
-    } 
+    """返回默认的生成参数，兼容旧版接口"""
+    return get_default_generation_params()
+
+# 添加别名函数，兼容comprehensive_evaluation脚本
+list_datasets = get_available_datasets
+list_metrics = get_available_metrics
+list_model_types = get_available_model_types 
